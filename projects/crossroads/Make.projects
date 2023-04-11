@@ -1,0 +1,9 @@
+# -*- makefile -*-
+
+# Sources for project 1.
+projects/crossroads_SRC  = projects/crossroads/crossroads.c
+projects/crossroads_SRC += projects/crossroads/ats.c
+############ DO NOT MODIFY ABOVE THIS LINE ###########
+
+projects/crossroads_SRC += projects/crossroads/vehicle.c
+projects/crossroads_SRC += projects/crossroads/map.c
