@@ -70,25 +70,35 @@ static int try_move(int start, int dest, int step, struct vehicle_info *vi)
 			/* actual move */
 			vi->position.row = vi->position.col = -1;
 			/* release previous */
-			lock_release(&vi->map_locks[pos_cur.row][pos_cur.col]);
+			//lock_release(&vi->map_locks[pos_cur.row][pos_cur.col]);
 			return 0;
 		}
 	}
 
 	/* lock next position */
-	//lock_acquire(&vi->map_locks[pos_next.row][pos_next.col]);
+    if (step < 2)
+    {
+	    while (!lock_try_acquire(&vi->map_locks[pos_next.row][pos_next.col]))
+            continue;
+    }
 	if (vi->state == VEHICLE_STATUS_READY) {
 		/* start this vehicle */
 		vi->state = VEHICLE_STATUS_RUNNING;
-        struct position tmp_pos = pos_next;
-        while (tmp_pos.row != -1 || tmp_pos.col != -1) {
-            lock_acquire(&vi->map_locks[tmp_pos.row][tmp_pos.col]);
-            step++;
-            tmp_pos = vehicle_path[start][dest][step];
-        }
-	} else {
+	}
+    else {
 		/* release current position */
-		lock_release(&vi->map_locks[pos_cur.row][pos_cur.col]);
+        if (step == 2)
+        {
+           int tmp_step = step;
+           struct position tmp_pos = vehicle_path[start][dest][tmp_step++];
+           while(tmp_pos.row > 1 && tmp_pos.row < 5 && tmp_pos.col > 1 && tmp_pos.col < 5)
+           {
+               if (lock_try_acquire(&vi->map_locks[tmp_pos.row][tmp_pos.col]))
+                   tmp_pos = vehicle_path[start][dest][tmp_step++];
+           }
+        }
+        if(step <= 2 || (pos_cur.row > 1 && pos_cur.row < 5 && pos_cur.col > 1 && pos_cur.col < 5))
+            lock_release(&vi->map_locks[pos_cur.row][pos_cur.col]);
 	}
 	/* update position */
 	vi->position = pos_next;
