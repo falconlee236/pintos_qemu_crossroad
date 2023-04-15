@@ -57,30 +57,28 @@ static int is_position_outside(struct position pos)
 	return (pos.row == -1 || pos.col == -1);
 }
 
-static int is_circular(int start, struct vehicle_info *vi)
+static void is_circular(int start, struct vehicle_info *vi)
 {
-    if (start == 0 && lock_try_acquire(&vi->map_locks[3][2]))
+    if (start == 0)
     {
+        lock_acquire(&vi->map_locks[3][2]);
         lock_release(&vi->map_locks[3][2]);
-        return 1;
     }
-    else if (start == 1 && lock_try_acquire(&vi->map_locks[4][3]))
+    else if (start == 1)
     {
+        lock_acquire(&vi->map_locks[4][3]);
         lock_release(&vi->map_locks[4][3]);
-        return 1;
     }
-    else if (start == 2 && lock_try_acquire(&vi->map_locks[3][4]))
+    else if (start == 2)
     {
+        lock_acquire(&vi->map_locks[3][4]);
         lock_release(&vi->map_locks[3][4]);
-        return 1;
     }
-    else if (start == 3 && lock_try_acquire(&vi->map_locks[2][3]))
+    else if (start == 3)
     {
+        lock_acquire(&vi->map_locks[2][3]);
         lock_release(&vi->map_locks[2][3]);
-        return 1;
     }
-    else
-        return 0;
 }
 
 /* return 0:termination, 1:success, -1:fail */
@@ -117,9 +115,10 @@ static int try_move(int start, int dest, int step, struct vehicle_info *vi)
         {
            int tmp_step = step;
            struct position tmp_pos = vehicle_path[start][dest][tmp_step++];
+           is_circular(start, vi);
            while(tmp_pos.row > 1 && tmp_pos.row < 5 && tmp_pos.col > 1 && tmp_pos.col < 5)
            {
-               if (is_circular(start, vi) && lock_try_acquire(&vi->map_locks[tmp_pos.row][tmp_pos.col]))
+               if (lock_try_acquire(&vi->map_locks[tmp_pos.row][tmp_pos.col]))
                    tmp_pos = vehicle_path[start][dest][tmp_step++];
            }
         }
