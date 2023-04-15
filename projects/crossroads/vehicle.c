@@ -1,5 +1,6 @@
 
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "threads/thread.h"
 #include "threads/synch.h"
@@ -89,14 +90,13 @@ static int try_move(int start, int dest, int step, struct vehicle_info *vi)
 
 	pos_next = vehicle_path[start][dest][step];
 	pos_cur = vi->position;
+    wait_cnt++;
 
 	if (vi->state == VEHICLE_STATUS_RUNNING) {
 		/* check termination */
 		if (is_position_outside(pos_next)) {
 			/* actual move */
 			vi->position.row = vi->position.col = -1;
-			/* release previous */
-			//lock_release(&vi->map_locks[pos_cur.row][pos_cur.col]);
 			return 0;
 		}
 	}
@@ -120,7 +120,6 @@ static int try_move(int start, int dest, int step, struct vehicle_info *vi)
            while(tmp_pos.row > 1 && tmp_pos.row < 5 && tmp_pos.col > 1 && tmp_pos.col < 5)
            {
                if (is_circular(start, vi) && lock_try_acquire(&vi->map_locks[tmp_pos.row][tmp_pos.col]))
-               //lock_acquire(&vi->map_locks[tmp_pos.row][tmp_pos.col]);
                    tmp_pos = vehicle_path[start][dest][tmp_step++];
            }
         }
@@ -129,12 +128,15 @@ static int try_move(int start, int dest, int step, struct vehicle_info *vi)
 	}
 	/* update position */
 	vi->position = pos_next;
-	
+    wait_cnt--;
 	return 1;
 }
 
 void init_on_mainthread(int thread_cnt){
 	/* Called once before spawning threads */
+    cnt = (struct semaphore*)malloc(sizeof(struct semaphore));
+    total_cnt = thread_cnt;
+    sema_init(cnt, thread_cnt);
 }
 
 void vehicle_loop(void *_vi)
@@ -152,19 +154,25 @@ void vehicle_loop(void *_vi)
 
 	step = 0;
 	while (1) {
-		/* vehicle main code */
-		res = try_move(start, dest, step, vi);
-		if (res == 1) {
-			step++;
-		}
-
-		/* termination condition. */ 
-		if (res == 0) {
-			break;
-		}
-
-		/* unitstep change! */
-		unitstep_changed();
+        if (sema_try_down(cnt))
+        {
+		    /* vehicle main code */
+		    res = try_move(start, dest, step, vi);
+		    if (res == 1) {
+			    step++;
+		    }
+		    /* termination condition. */ 
+		    if (res == 0) {
+			    break;
+		    }
+            /* unitstep change! */
+            unitstep_changed();
+        }
+        else
+        {
+            crossroads_step++;
+            sema_init(cnt, total_cnt - wait_cnt);
+        }
 	}	
 
 	/* status transition must happen before sema_up */
