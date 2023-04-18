@@ -163,7 +163,15 @@ void vehicle_loop(void *_vi)
         {
 		    /* vehicle main code */
             if (step == 2)
-                sema_down(traffic);
+            {
+                if (!sema_try_down(traffic))
+                {
+                    wait_cnt++;
+                    sema_down(traffic);
+                    wait_cnt--;
+                }
+                //sema_down(traffic);
+            }
             if (step == 3)
                 sema_up(traffic);
 		    res = try_move(start, dest, step, vi);
