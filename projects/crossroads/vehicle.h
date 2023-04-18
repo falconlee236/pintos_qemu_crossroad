@@ -17,7 +17,7 @@ struct vehicle_info {
 	struct lock **map_locks;
 };
 
-struct semaphore *cnt;
+struct semaphore *cnt, *traffic;
 int total_cnt;
 int wait_cnt;
 

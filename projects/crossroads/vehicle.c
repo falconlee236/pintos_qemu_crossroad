@@ -121,6 +121,9 @@ static int try_move(int start, int dest, int step, struct vehicle_info *vi)
            {
                if (lock_try_acquire(&vi->map_locks[tmp_pos.row][tmp_pos.col]))
                    tmp_pos = vehicle_path[start][dest][tmp_step++];
+               //while (!lock_try_acquire(&vi->map_locks[tmp_pos.row][tmp_pos.col]))
+               //    continue;
+               //tmp_pos = vehicle_path[start][dest][tmp_step++];
            }
         }
         if(step <= 2 || (pos_cur.row > 1 && pos_cur.row < 5 && pos_cur.col > 1 && pos_cur.col < 5))
@@ -135,7 +138,9 @@ static int try_move(int start, int dest, int step, struct vehicle_info *vi)
 void init_on_mainthread(int thread_cnt){
 	/* Called once before spawning threads */
     cnt = (struct semaphore*)malloc(sizeof(struct semaphore));
+    traffic = (struct semaphore*)malloc(sizeof(struct semaphore));
     sema_init(cnt, 0);
+    sema_init(traffic, 3);
     total_cnt = thread_cnt;
 }
 
@@ -157,6 +162,10 @@ void vehicle_loop(void *_vi)
         if (sema_try_down(cnt))
         {
 		    /* vehicle main code */
+            if (step == 2)
+                sema_down(traffic);
+            if (step == 3)
+                sema_up(traffic);
 		    res = try_move(start, dest, step, vi);
 		    if (res == 1) {
 			    step++;
