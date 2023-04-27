@@ -57,7 +57,8 @@ static int is_position_outside(struct position pos)
 	return (pos.row == -1 || pos.col == -1);
 }
 
-static void is_circular(int start, struct vehicle_info *vi)
+/* checking circular queue condition */
+static void check_circular(int start, struct vehicle_info *vi)
 {
     if (start == 0)
     {
@@ -99,33 +100,33 @@ static int try_move(int start, int dest, int step, struct vehicle_info *vi)
 		}
 	}
 
-	/* lock next position */
+	/* lock next two position */
     if (step < 2)
     {
-	    //while (!lock_try_acquire(&vi->map_locks[pos_next.row][pos_next.col]))
-        //    continue;
         lock_acquire(&vi->map_locks[pos_next.row][pos_next.col]);
     }
+
 	if (vi->state == VEHICLE_STATUS_READY) {
 		/* start this vehicle */
 		vi->state = VEHICLE_STATUS_RUNNING;
 	}
     else {
-		/* release current position */
+        /* vehicle arrived at in front of crossroad line */
         if (step == 2)
         {
            int tmp_step = step;
            struct position tmp_pos = vehicle_path[start][dest][tmp_step++];
-           is_circular(start, vi);
+           /* try lock crossroads vehicle want to go */
+           check_circular(start, vi);
+           /* lock vehicles path */
            while(tmp_pos.row > 1 && tmp_pos.row < 5 && tmp_pos.col > 1 && tmp_pos.col < 5)
            {
+               /* if other vehicle occupyed before, busy waiting */
                if (lock_try_acquire(&vi->map_locks[tmp_pos.row][tmp_pos.col]))
                    tmp_pos = vehicle_path[start][dest][tmp_step++];
-               //while (!lock_try_acquire(&vi->map_locks[tmp_pos.row][tmp_pos.col]))
-               //    continue;
-               //tmp_pos = vehicle_path[start][dest][tmp_step++];
            }
         }
+		/* release current position */
         if(step <= 2 || (pos_cur.row > 1 && pos_cur.row < 5 && pos_cur.col > 1 && pos_cur.col < 5))
             lock_release(&vi->map_locks[pos_cur.row][pos_cur.col]);
 	}
@@ -137,11 +138,17 @@ static int try_move(int start, int dest, int step, struct vehicle_info *vi)
 
 void init_on_mainthread(int thread_cnt){
 	/* Called once before spawning threads */
+
+    /* total vehicles number */
+    total_cnt = thread_cnt;
+    /* semaphore for unitstep changed */
     cnt = (struct semaphore*)malloc(sizeof(struct semaphore));
+    /* semaphore for controlling total vehicles number */
     traffic = (struct semaphore*)malloc(sizeof(struct semaphore));
+
+    /* init semaphore */
     sema_init(cnt, 0);
     sema_init(traffic, 3);
-    total_cnt = thread_cnt;
 }
 
 void vehicle_loop(void *_vi)
@@ -158,22 +165,30 @@ void vehicle_loop(void *_vi)
 	vi->state = VEHICLE_STATUS_READY;
 
 	step = 0;
+    /* vehicle main code */
 	while (1) {
+        /* not last vehicle yet */
         if (sema_try_down(cnt))
         {
-		    /* vehicle main code */
+            /* vehicle positioned in front of crossroad line */
             if (step == 2)
             {
+                /* already three vehicles in crossroad */
                 if (!sema_try_down(traffic))
                 {
+                    /* increasing number of waiting vehicles */
                     wait_cnt++;
+                    /* push that vehicle into waiting queue */
                     sema_down(traffic);
+                    /* decreaing number of waiting vehicles */
                     wait_cnt--;
                 }
-                //sema_down(traffic);
             }
+            /* if vehicle into the crossroad, pop vehicle that exist waiting queue */
             if (step == 3)
                 sema_up(traffic);
+
+            /* moving the vehicle */
 		    res = try_move(start, dest, step, vi);
 		    if (res == 1) {
 			    step++;
@@ -185,9 +200,12 @@ void vehicle_loop(void *_vi)
             /* unitstep change! */
             unitstep_changed();
         }
+        /* last vehicle */
         else
         {
+            /* increase step */
             crossroads_step++;
+            /* re-initalize semaphore */
             sema_init(cnt, total_cnt - wait_cnt);
         }
 	}	
