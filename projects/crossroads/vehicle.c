@@ -102,14 +102,11 @@ static int try_move(int start, int dest, int step, struct vehicle_info *vi)
 
 	/* lock next two position */
     if (step < 2)
-    {
         lock_acquire(&vi->map_locks[pos_next.row][pos_next.col]);
-    }
 
-	if (vi->state == VEHICLE_STATUS_READY) {
-		/* start this vehicle */
+	/* start this vehicle */
+	if (vi->state == VEHICLE_STATUS_READY)
 		vi->state = VEHICLE_STATUS_RUNNING;
-	}
     else {
         /* vehicle arrived at in front of crossroad line */
         if (step == 2)
@@ -141,6 +138,7 @@ void init_on_mainthread(int thread_cnt){
 
     /* total vehicles number */
     total_cnt = thread_cnt;
+
     /* semaphore for unitstep changed */
     cnt = (struct semaphore*)malloc(sizeof(struct semaphore));
     /* semaphore for controlling total vehicles number */
@@ -190,13 +188,13 @@ void vehicle_loop(void *_vi)
 
             /* moving the vehicle */
 		    res = try_move(start, dest, step, vi);
-		    if (res == 1) {
+		    if (res == 1)
 			    step++;
-		    }
+
 		    /* termination condition. */ 
-		    if (res == 0) {
+		    if (res == 0)
 			    break;
-		    }
+
             /* unitstep change! */
             unitstep_changed();
         }
