@@ -5,6 +5,14 @@ This project is a repository for those who suffer from Chung-Ang University's op
 When I was working on the assignment, it was to solve the car intersection problem, but they said it was revised from 2024?
 But the fundamentals don't seem to have changed, so I hope the code will be a reference.
 
+### Cautions
+Most operating system assignments are not friendly to ARM architecture.  
+That's why you need x86 architecture computer to compile pintos.  
+This means that the task cannot be performed on the following computers.
+* Apple sillicon M1, M2, M3
+* Ubuntu installed on Apple silicon M1, M2, and M3
+* Windows installed on Apple silicon M1, M2, and M3
+
 If this code is helpful in your assignment, please press star ⭐ ️
 
 Your 19th grader at Chung-Ang University.
